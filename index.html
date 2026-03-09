@@ -581,9 +581,10 @@
         let currentRoom = null;
         let timerInterval = null;
         let roomTimer = null;
-        let gameType = 'bot'; // 'bot' или 'online'
-        let opponentId = null;
+        let gameUpdateInterval = null;
+        let gameType = 'bot';
         let myTurn = false;
+        let usedWords = [];
 
         // Данные игрока
         let playerStats = {
@@ -613,8 +614,39 @@
             }
         };
 
-        // Онлайн комнаты (синхронизация через localStorage)
-        let rooms = {};
+        // Глобальное хранилище комнат (эмуляция сервера)
+        let globalRooms = {};
+
+        // Загрузка комнат при старте
+        function loadRooms() {
+            const saved = localStorage.getItem('geo_global_rooms');
+            if (saved) {
+                globalRooms = JSON.parse(saved);
+            }
+        }
+
+        // Сохранение комнат
+        function saveRooms() {
+            localStorage.setItem('geo_global_rooms', JSON.stringify(globalRooms));
+        }
+
+        // Очистка старых комнат (каждую минуту)
+        function cleanupRooms() {
+            const now = Date.now();
+            let changed = false;
+            
+            for (let code in globalRooms) {
+                if (now - globalRooms[code].created > 3600000) { // 1 час
+                    delete globalRooms[code];
+                    changed = true;
+                }
+            }
+            
+            if (changed) saveRooms();
+        }
+
+        // Запускаем очистку
+        setInterval(cleanupRooms, 60000);
 
         // Загрузка статистики
         function loadStats() {
@@ -707,10 +739,8 @@
             playerStats.total_score += score;
             if (score > playerStats.best_score) playerStats.best_score = score;
             
-            // Рейтинг ELO
             playerStats.rating += 25;
             
-            // Достижения
             if (playerStats.wins === 1 && !playerStats.achievements.includes('first_win')) {
                 playerStats.achievements.push('first_win');
                 showToast('🌟 Новое достижение: Первая Победа!');
@@ -737,7 +767,6 @@
             updateUI();
         }
 
-        // Обновление лидерборда
         function updateLeaderboard() {
             let leaderboard = JSON.parse(localStorage.getItem('geo_leaderboard') || '[]');
             const existing = leaderboard.findIndex(item => item.id === userId);
@@ -750,7 +779,6 @@
             localStorage.setItem('geo_leaderboard', JSON.stringify(leaderboard.slice(0, 20)));
         }
 
-        // Переключение экранов
         function switchScreen(screen) {
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             document.querySelector(`.nav-item[data-screen="${screen}"]`).classList.add('active');
@@ -764,7 +792,6 @@
             currentScreen = screen;
         }
 
-        // Выбор режима
         function selectMode(mode) {
             currentMode = mode;
             gameType = 'bot';
@@ -776,7 +803,6 @@
             selectMode(modes[Math.floor(Math.random() * modes.length)]);
         }
 
-        // Начало игры с ботом
         function startGame(mode) {
             switchScreen('game');
             
@@ -798,16 +824,15 @@
             document.getElementById('sendAnswerBtn').disabled = false;
             myTurn = true;
             
-            // Первая буква
             const letters = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Э', 'Ю', 'Я'];
             document.getElementById('currentLetter').textContent = letters[Math.floor(Math.random() * letters.length)];
             
+            usedWords = [];
             startTimer(30);
             
             addChatMessage('Игра началась! Назови ' + MODES[mode].name.split(' ')[1] + ' на букву ' + document.getElementById('currentLetter').textContent, 'Система');
         }
 
-        // Таймер
         function startTimer(seconds) {
             let timeLeft = seconds;
             document.getElementById('gameTimerDisplay').textContent = timeLeft;
@@ -822,12 +847,10 @@
                     clearInterval(timerInterval);
                     
                     if (gameType === 'bot') {
-                        // Смена игрока
                         document.querySelectorAll('.player').forEach(p => p.classList.toggle('active'));
                         myTurn = !myTurn;
                         
                         if (!myTurn) {
-                            // Бот отвечает
                             setTimeout(() => botAnswer(), 1000);
                         }
                         
@@ -835,19 +858,16 @@
                         
                         startTimer(30);
                     } else {
-                        // Онлайн режим - пропуск хода
                         handleOnlineTimeout();
                     }
                 }
             }, 1000);
         }
 
-        // Ответ бота
         function botAnswer() {
             const currentLetter = document.getElementById('currentLetter').textContent;
             const modeList = MODES[currentMode].list;
             
-            // Ищем подходящий ответ
             const possibleAnswers = modeList.filter(item => 
                 item[0].toUpperCase() === currentLetter && 
                 !usedWords.includes(item.toLowerCase())
@@ -868,24 +888,18 @@
                 
                 addChatMessage(`🤖 ${answer}`, 'Бот');
                 
-                // Проверка окончания
                 if (parseInt(botScore.textContent) >= 10) {
                     endGame('bot');
                 }
             } else {
-                // Бот не может ответить - победа игрока
                 addChatMessage('🤖 Бот не может ответить! Ты победил!', 'Система');
                 endGame('player');
             }
             
-            // Смена игрока
             document.querySelectorAll('.player').forEach(p => p.classList.toggle('active'));
             myTurn = true;
         }
 
-        let usedWords = [];
-
-        // Отправка ответа
         function sendAnswer() {
             const input = document.getElementById('answerInput');
             const answer = input.value.trim();
@@ -899,14 +913,12 @@
                 return;
             }
             
-            // Проверка буквы
             if (answer[0].toUpperCase() !== currentLetter) {
                 addChatMessage(`❌ Ответ должен начинаться на букву ${currentLetter}`, 'Система');
                 input.value = '';
                 return;
             }
             
-            // Проверка в базе
             const modeList = MODES[currentMode].list;
             if (!modeList.some(item => item.toLowerCase() === answer.toLowerCase())) {
                 addChatMessage(`❌ ${answer} не найден в базе`, 'Система');
@@ -914,7 +926,6 @@
                 return;
             }
             
-            // Проверка на повтор
             if (usedWords.includes(answer.toLowerCase())) {
                 addChatMessage(`❌ ${answer} уже было названо`, 'Система');
                 input.value = '';
@@ -924,42 +935,34 @@
             usedWords.push(answer.toLowerCase());
             
             if (gameType === 'bot') {
-                // Игра с ботом
                 const playerScore = document.getElementById('player1Score');
                 playerScore.textContent = parseInt(playerScore.textContent) + 1;
                 
                 addChatMessage(`✅ ${answer} - верно! +1 очко`, userName);
                 input.value = '';
                 
-                // Новая буква
                 let lastChar = answer.slice(-1).toUpperCase();
                 if (lastChar === 'Ь' || lastChar === 'Ъ' || lastChar === 'Ы') {
                     lastChar = answer.slice(-2, -1).toUpperCase();
                 }
                 document.getElementById('currentLetter').textContent = lastChar;
                 
-                // Сброс таймера
                 clearInterval(timerInterval);
                 startTimer(30);
                 
-                // Смена игрока
                 document.querySelectorAll('.player').forEach(p => p.classList.toggle('active'));
                 myTurn = false;
                 
-                // Бот отвечает
                 setTimeout(() => botAnswer(), 1500);
                 
-                // Проверка окончания
                 if (parseInt(playerScore.textContent) >= 10) {
                     endGame('player');
                 }
             } else {
-                // Онлайн игра
                 handleOnlineAnswer(answer);
             }
         }
 
-        // Завершение игры
         function endGame(winner) {
             clearInterval(timerInterval);
             
@@ -973,7 +976,6 @@
                     addChatMessage('😢 Ты проиграл... -15 рейтинга', 'Система');
                 }
             } else {
-                // Онлайн завершение
                 if (winner === 'me') {
                     addWin(10, currentMode, true);
                     addChatMessage('🎉 Ты победил в онлайн-матче! +25 рейтинга', 'Система');
@@ -992,7 +994,6 @@
             }, 2000);
         }
 
-        // Чат
         function addChatMessage(text, sender) {
             const chat = document.getElementById('gameChat');
             const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -1012,22 +1013,14 @@
         function sendChatMessage() {
             const input = document.getElementById('chatInput');
             if (input.value.trim()) {
-                if (gameType === 'online' && currentRoom) {
-                    // Отправка сообщения в онлайн-чат
-                    const rooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
-                    const room = rooms[currentRoom];
-                    if (room) {
-                        if (!room.chat) room.chat = [];
-                        room.chat.push({
-                            sender: userName,
-                            text: input.value,
-                            time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-                        });
-                        localStorage.setItem('geo_rooms', JSON.stringify(rooms));
-                        
-                        // Если другой игрок онлайн, он увидит сообщение при следующем обновлении
-                        checkChat();
-                    }
+                if (gameType === 'online' && currentRoom && globalRooms[currentRoom]) {
+                    if (!globalRooms[currentRoom].chat) globalRooms[currentRoom].chat = [];
+                    globalRooms[currentRoom].chat.push({
+                        sender: userName,
+                        text: input.value,
+                        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                    });
+                    saveRooms();
                 }
                 addChatMessage(input.value, userName);
                 input.value = '';
@@ -1037,11 +1030,13 @@
         function leaveGame() {
             if (confirm('Завершить игру?')) {
                 clearInterval(timerInterval);
-                if (gameType === 'online' && currentRoom) {
-                    // Удаляем комнату
-                    const rooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
-                    delete rooms[currentRoom];
-                    localStorage.setItem('geo_rooms', JSON.stringify(rooms));
+                if (gameUpdateInterval) {
+                    clearInterval(gameUpdateInterval);
+                    gameUpdateInterval = null;
+                }
+                if (gameType === 'online' && currentRoom && globalRooms[currentRoom]) {
+                    delete globalRooms[currentRoom];
+                    saveRooms();
                 }
                 usedWords = [];
                 switchScreen('home');
@@ -1062,22 +1057,23 @@
             document.getElementById('joinRoomSection').classList.remove('hidden');
             document.getElementById('roomWaiting').classList.add('hidden');
             
-            // Показываем активные комнаты
             const roomsList = document.getElementById('roomsList');
-            const activeRooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
             
             let html = '<div class="section-title">📋 Доступные комнаты</div>';
             let hasRooms = false;
             
-            for (let code in activeRooms) {
-                const room = activeRooms[code];
-                if (room.status === 'waiting') {
+            loadRooms();
+            
+            for (let code in globalRooms) {
+                const room = globalRooms[code];
+                if (room.status === 'waiting' && room.creator !== userId) {
                     hasRooms = true;
                     html += `
                         <div class="room-card">
                             <div class="room-info">
                                 <div class="room-code">${code}</div>
                                 <div class="room-details">${MODES[room.mode].name} · ${room.time} сек · ${room.rounds} раундов</div>
+                                <div style="font-size: 12px; color: #4caf50;">Создатель: ${room.creatorName}</div>
                             </div>
                             <button class="join-btn" onclick="joinRoom('${code}')">Войти</button>
                         </div>
@@ -1103,9 +1099,9 @@
             
             const roomCode = Math.floor(10000 + Math.random() * 90000).toString();
             
-            // Сохраняем комнату
-            const rooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
-            rooms[roomCode] = {
+            loadRooms();
+            
+            globalRooms[roomCode] = {
                 mode: roomSettings.mode,
                 time: roomSettings.time,
                 rounds: roomSettings.rounds,
@@ -1117,14 +1113,14 @@
                 currentLetter: 'А',
                 usedWords: [],
                 chat: [],
-                lastUpdate: Date.now()
+                created: Date.now()
             };
-            localStorage.setItem('geo_rooms', JSON.stringify(rooms));
+            
+            saveRooms();
             
             currentRoom = roomCode;
             gameType = 'online';
             
-            // Показываем ожидание
             document.getElementById('createRoomSection').classList.add('hidden');
             document.getElementById('joinRoomSection').classList.add('hidden');
             document.getElementById('roomWaiting').classList.remove('hidden');
@@ -1134,7 +1130,6 @@
             document.getElementById('roomTimeDisplay').textContent = roomSettings.time + ' сек';
             document.getElementById('roomRoundsDisplay').textContent = roomSettings.rounds;
             
-            // Проверяем подключение
             checkRoomPlayers();
         }
 
@@ -1144,11 +1139,16 @@
         }
 
         function joinRoom(code) {
-            const rooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
-            const room = rooms[code];
+            loadRooms();
+            const room = globalRooms[code];
             
-            if (!room || room.status !== 'waiting') {
+            if (!room) {
                 showToast('❌ Комната не найдена');
+                return;
+            }
+            
+            if (room.status !== 'waiting') {
+                showToast('❌ Игра уже началась');
                 return;
             }
             
@@ -1157,21 +1157,18 @@
                 return;
             }
             
-            // Добавляем игрока
             room.players.push({ id: userId, name: userName, score: 0 });
             room.status = 'playing';
             
-            // Случайная буква для начала
             const letters = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Э', 'Ю', 'Я'];
             room.currentLetter = letters[Math.floor(Math.random() * letters.length)];
-            room.currentPlayer = room.creator; // Создатель ходит первым
+            room.currentPlayer = room.creator;
             
-            localStorage.setItem('geo_rooms', JSON.stringify(rooms));
+            saveRooms();
             
             currentRoom = code;
             gameType = 'online';
             
-            // Начинаем игру
             startOnlineGame(room);
         }
 
@@ -1182,10 +1179,8 @@
             document.getElementById('gameModeDisplay').textContent = MODES[room.mode].name;
             document.getElementById('currentLetter').textContent = room.currentLetter;
             
-            // Определяем, чей ход
             myTurn = (room.currentPlayer === userId);
             
-            // Отображаем игроков
             const playersHtml = room.players.map(p => `
                 <div class="player ${p.id === room.currentPlayer ? 'active' : ''}" data-player="${p.id}">
                     <div class="player-name">${p.name} ${p.id === userId ? '(ты)' : ''}</div>
@@ -1204,14 +1199,12 @@
             
             addChatMessage('🎮 Онлайн-игра началась! Противник: ' + room.players.find(p => p.id !== userId).name, 'Система');
             
-            // Загружаем чат
             if (room.chat) {
                 room.chat.forEach(msg => {
                     addChatMessage(msg.text, msg.sender);
                 });
             }
             
-            // Запускаем проверку обновлений
             startGameUpdates();
         }
 
@@ -1219,25 +1212,21 @@
             if (gameUpdateInterval) clearInterval(gameUpdateInterval);
             
             gameUpdateInterval = setInterval(() => {
-                const rooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
-                const room = rooms[currentRoom];
+                loadRooms();
+                const room = globalRooms[currentRoom];
                 
                 if (!room || room.status !== 'playing') {
-                    // Игра завершена
                     clearInterval(gameUpdateInterval);
                     return;
                 }
                 
-                // Обновляем счёт
                 room.players.forEach(p => {
                     const scoreEl = document.getElementById(`score-${p.id}`);
                     if (scoreEl) scoreEl.textContent = p.score || 0;
                 });
                 
-                // Обновляем букву
                 document.getElementById('currentLetter').textContent = room.currentLetter;
                 
-                // Обновляем активного игрока
                 document.querySelectorAll('.player').forEach(el => {
                     const playerId = el.dataset.player;
                     if (playerId == room.currentPlayer) {
@@ -1247,29 +1236,22 @@
                     }
                 });
                 
-                // Обновляем состояние ввода
                 myTurn = (room.currentPlayer === userId);
                 document.getElementById('answerInput').disabled = !myTurn;
                 document.getElementById('sendAnswerBtn').disabled = !myTurn;
                 
-                // Обновляем чат
                 if (room.chat && room.chat.length > 0) {
-                    const chat = document.getElementById('gameChat');
                     const lastMsg = room.chat[room.chat.length - 1];
-                    const lastMsgId = `${lastMsg.sender}_${lastMsg.time}`;
-                    
-                    if (!chat.querySelector(`[data-msgid="${lastMsgId}"]`)) {
+                    if (lastMsg.sender !== userName) {
                         addChatMessage(lastMsg.text, lastMsg.sender);
                     }
                 }
             }, 1000);
         }
 
-        let gameUpdateInterval = null;
-
         function handleOnlineAnswer(answer) {
-            const rooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
-            const room = rooms[currentRoom];
+            loadRooms();
+            const room = globalRooms[currentRoom];
             
             if (!room) return;
             
@@ -1278,68 +1260,53 @@
                 return;
             }
             
-            // Обновляем счёт
             const player = room.players.find(p => p.id === userId);
             player.score = (player.score || 0) + 1;
             
-            // Добавляем слово в использованные
             if (!room.usedWords) room.usedWords = [];
             room.usedWords.push(answer.toLowerCase());
             
-            // Новая буква
             let lastChar = answer.slice(-1).toUpperCase();
             if (lastChar === 'Ь' || lastChar === 'Ъ' || lastChar === 'Ы') {
                 lastChar = answer.slice(-2, -1).toUpperCase();
             }
             room.currentLetter = lastChar;
             
-            // Смена игрока
             const opponent = room.players.find(p => p.id !== userId);
             room.currentPlayer = opponent.id;
             
-            room.lastUpdate = Date.now();
-            
-            // Проверка окончания
-            if (player.score >= room.rounds) {
-                endOnlineGame(userId);
-                return;
-            }
-            
-            localStorage.setItem('geo_rooms', JSON.stringify(rooms));
+            saveRooms();
             
             addChatMessage(`✅ ${answer} - верно! +1 очко`, userName);
             document.getElementById('answerInput').value = '';
             
-            // Сброс таймера
             clearInterval(timerInterval);
             startTimer(room.time);
+            
+            if (player.score >= room.rounds) {
+                endOnlineGame(userId);
+            }
         }
 
         function handleOnlineTimeout() {
-            const rooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
-            const room = rooms[currentRoom];
+            loadRooms();
+            const room = globalRooms[currentRoom];
             
             if (!room) return;
             
-            // Противник получает очко
             const opponent = room.players.find(p => p.id !== userId);
             opponent.score = (opponent.score || 0) + 1;
             
-            // Смена игрока
             room.currentPlayer = opponent.id;
             
-            // Новая буква
             const letters = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Э', 'Ю', 'Я'];
             room.currentLetter = letters[Math.floor(Math.random() * letters.length)];
             room.usedWords = [];
             
-            room.lastUpdate = Date.now();
-            
-            localStorage.setItem('geo_rooms', JSON.stringify(rooms));
+            saveRooms();
             
             addChatMessage('⏰ Время вышло! Противник получает очко', 'Система');
             
-            // Проверка окончания
             if (opponent.score >= room.rounds) {
                 endOnlineGame(opponent.id);
                 return;
@@ -1349,8 +1316,8 @@
         }
 
         function endOnlineGame(winnerId) {
-            const rooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
-            const room = rooms[currentRoom];
+            loadRooms();
+            const room = globalRooms[currentRoom];
             
             if (!room) return;
             
@@ -1360,9 +1327,8 @@
                 endGame('opponent');
             }
             
-            // Удаляем комнату
-            delete rooms[currentRoom];
-            localStorage.setItem('geo_rooms', JSON.stringify(rooms));
+            delete globalRooms[currentRoom];
+            saveRooms();
             
             if (gameUpdateInterval) {
                 clearInterval(gameUpdateInterval);
@@ -1374,8 +1340,8 @@
             if (roomTimer) clearInterval(roomTimer);
             
             roomTimer = setInterval(() => {
-                const rooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
-                const room = rooms[currentRoom];
+                loadRooms();
+                const room = globalRooms[currentRoom];
                 
                 if (room && room.players.length > 1) {
                     clearInterval(roomTimer);
@@ -1391,25 +1357,12 @@
         function cancelRoom() {
             if (roomTimer) clearInterval(roomTimer);
             
-            // Удаляем комнату
-            const rooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
-            delete rooms[currentRoom];
-            localStorage.setItem('geo_rooms', JSON.stringify(rooms));
+            loadRooms();
+            delete globalRooms[currentRoom];
+            saveRooms();
             
             document.getElementById('roomWaiting').classList.add('hidden');
             document.getElementById('createRoomSection').classList.remove('hidden');
-        }
-
-        function checkChat() {
-            const rooms = JSON.parse(localStorage.getItem('geo_rooms') || '{}');
-            const room = rooms[currentRoom];
-            
-            if (room && room.chat) {
-                const lastMsg = room.chat[room.chat.length - 1];
-                if (lastMsg && lastMsg.sender !== userName) {
-                    addChatMessage(lastMsg.text, lastMsg.sender);
-                }
-            }
         }
 
         function showToast(text) {
@@ -1422,6 +1375,7 @@
         }
 
         // Инициализация
+        loadRooms();
         loadStats();
     </script>
 </body>
