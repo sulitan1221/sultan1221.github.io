@@ -34,14 +34,16 @@
         .star { width:4px; height:4px; background:white; border-radius:50%; position:absolute; box-shadow:0 0 20px white; animation:twinkle 3s infinite; }
         @keyframes twinkle { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.3; transform:scale(0.5); } }
 
-        /* ===== ВЕРТИКАЛЬНЫЙ СЛАЙДЕР (листание вниз) ===== */
+        /* ===== ВЕРТИКАЛЬНЫЙ СЛАЙДЕР КАК В TIKTOK ===== */
         .slider-container {
             position: relative; z-index: 10; width: 100%; height: 100vh;
             overflow-x: hidden; overflow-y: auto; scroll-snap-type: y mandatory;
             display: flex; flex-direction: column; scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain; /* ← главное, чтобы не перескакивало через страницы */
         }
         .slide {
             flex: 0 0 100vh; width: 100%; scroll-snap-align: start;
+            scroll-snap-stop: always; /* ← строго останавливается на каждом слайде после одного свайпа */
             display: flex; align-items: center; justify-content: center; padding: 20px;
         }
         .card {
@@ -57,7 +59,13 @@
         @keyframes card-float { 0%,100% { transform: translateY(0) rotate(0deg); } 25% { transform: translateY(-8px) rotate(0.5deg); } 75% { transform: translateY(8px) rotate(-0.5deg); } }
         @keyframes card-float-light { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
-        .neon-title { font-size:52px; font-weight:900; text-align:center; background:linear-gradient(135deg,#4ecdc4,#a55eea,#ff6b6b); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-shadow:0 0 40px rgba(78,205,196,0.5); margin-bottom:20px; animation:title-glow 4s infinite; letter-spacing:2px; }
+        .neon-title {
+            font-size:52px; font-weight:900; text-align:center;
+            background:linear-gradient(135deg,#4ecdc4,#a55eea,#ff6b6b);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+            text-shadow:0 0 40px rgba(78,205,196,0.5); margin-bottom:20px;
+            animation:title-glow 4s infinite; letter-spacing:2px;
+        }
         @keyframes title-glow { 0%,100% { filter:drop-shadow(0 0 20px #4ecdc4); } 33% { filter:drop-shadow(0 0 40px #a55eea); } 66% { filter:drop-shadow(0 0 30px #ff6b6b); } }
         .neon-sub { font-size:22px; text-align:center; color:rgba(255,255,255,0.9); text-shadow:0 0 20px #4ecdc4,0 0 40px #a55eea; margin-bottom:40px; letter-spacing:1px; }
 
@@ -70,7 +78,10 @@
             box-shadow:0 0 0 0 rgba(78,205,196,0); overflow:hidden;
         }
         .opt-card:hover { transform:scale(1.04); border-color:#4ecdc4; }
-        .opt-card.active { border-color:#4ecdc4; box-shadow:0 0 35px #4ecdc4, inset 0 0 25px rgba(78,205,196,0.3); background:rgba(78,205,196,0.12); }
+        .opt-card.active {
+            border-color:#4ecdc4; box-shadow:0 0 35px #4ecdc4, inset 0 0 25px rgba(78,205,196,0.3);
+            background:rgba(78,205,196,0.12);
+        }
         .opt-icon { font-size:68px; margin-bottom:15px; display:block; transition:transform 0.3s; }
         .opt-card.active .opt-icon { transform:scale(1.15); }
         .opt-name { font-size:22px; font-weight:800; margin-bottom:4px; color:#fff; }
@@ -79,7 +90,7 @@
         .scale-features { margin-top:30px; padding:15px; background:rgba(0,0,0,0.25); border-radius:20px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
         .feature-tag { background:rgba(78,205,196,0.15); border:1px solid #4ecdc4; color:#4ecdc4; padding:8px 18px; border-radius:30px; font-size:13px; font-weight:600; }
 
-        /* Остальные стили (без изменений) */
+        /* Остальные стили без изменений */
         .stats-neon { display:flex; justify-content:space-around; margin:40px 0; padding:25px; background:rgba(0,0,0,0.4); border-radius:40px; border:1px solid rgba(78,205,196,0.4); }
         .stat-neon-item { text-align:center; flex:1; }
         .stat-neon-value { font-size:42px; font-weight:800; color:#4ecdc4; text-shadow:0 0 30px #4ecdc4; }
@@ -124,7 +135,7 @@
     <div class="nav-arrow bottom" onclick="nextSlide()">↓</div>
     <div class="nav-dots" id="navDots"></div>
     <div class="slider-container" id="slider">
-        <!-- СЛАЙД 0: 4 большие карточки оптимизации -->
+        <!-- СЛАЙД 0: оптимизация (как на скриншоте) -->
         <div class="slide">
             <div class="card" id="mainCard">
                 <div class="neon-title">НАСТРОЙКИ ВСЕЛЕННОЙ</div>
@@ -158,7 +169,7 @@
             </div>
         </div>
 
-        <!-- СЛАЙД 1: Главная -->
+        <!-- СЛАЙД 1 -->
         <div class="slide">
             <div class="card">
                 <div class="neon-title">ГЕОГРАФИЧЕСКАЯ ДУЭЛЬ</div>
@@ -187,7 +198,7 @@
             </div>
         </div>
 
-        <!-- СЛАЙД 2: Режимы игры -->
+        <!-- СЛАЙД 2 -->
         <div class="slide">
             <div class="card">
                 <div class="neon-title">🎮 РЕЖИМЫ ИГРЫ</div>
@@ -204,7 +215,7 @@
             </div>
         </div>
 
-        <!-- СЛАЙД 3: Прогресс -->
+        <!-- СЛАЙД 3 -->
         <div class="slide">
             <div class="card">
                 <div class="neon-title">🏆 СИСТЕМА ПРОГРЕССА</div>
@@ -217,7 +228,7 @@
             </div>
         </div>
 
-        <!-- СЛАЙД 4: Социальные функции -->
+        <!-- СЛАЙД 4 -->
         <div class="slide">
             <div class="card">
                 <div class="neon-title">👥 СОЦИАЛЬНЫЕ ФУНКЦИИ</div>
@@ -230,7 +241,7 @@
             </div>
         </div>
 
-        <!-- СЛАЙД 5: Команды -->
+        <!-- СЛАЙД 5 -->
         <div class="slide">
             <div class="card">
                 <div class="neon-title">📋 ВСЕ КОМАНДЫ</div>
@@ -248,7 +259,7 @@
             </div>
         </div>
 
-        <!-- СЛАЙД 6: Об авторе -->
+        <!-- СЛАЙД 6 -->
         <div class="slide">
             <div class="card">
                 <div class="neon-title">👨‍💻 ОБ АВТОРЕ</div>
@@ -285,14 +296,13 @@
         const featuresDiv = document.getElementById('optimizationFeatures');
         let currentSlide = 0;
 
-        // Навигация
         slides.forEach((_,i)=>{ const dot=document.createElement('div'); dot.className='nav-dot'+(i===0?' active':''); dot.onclick=()=>goToSlide(i); navDots.appendChild(dot); });
         function updateDots(){ document.querySelectorAll('.nav-dot').forEach((d,i)=>d.classList.toggle('active',i===currentSlide)); }
         function goToSlide(n){ if(n>=0&&n<slides.length){ currentSlide=n; slider.scrollTo({top:n*slider.clientHeight,behavior:'smooth'}); updateDots(); } }
         function nextSlide(){goToSlide(currentSlide+1);} function prevSlide(){goToSlide(currentSlide-1);}
         slider.addEventListener('scroll',()=>{ const i=Math.round(slider.scrollTop/slider.clientHeight); if(i!==currentSlide){currentSlide=i;updateDots();}});
 
-        // 100% рабочие кнопки оптимизации
+        // === КНОПКИ ОПТИМИЗАЦИИ ===
         const optGrid = document.getElementById('optGrid');
         function setOptimization(mode, card) {
             document.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('active'));
@@ -310,7 +320,6 @@
         optGrid.addEventListener('click', e=>{ const card=e.target.closest('.opt-card'); if(card) setOptimization(card.dataset.mode, card); });
         optGrid.addEventListener('touchend', e=>{ const card=e.target.closest('.opt-card'); if(card) setOptimization(card.dataset.mode, card); }, {passive:true});
 
-        // Генерация фигур и звёзд
         function createStars(){ const c=document.getElementById('shapes'); for(let i=0;i<100;i++){ const s=document.createElement('div'); s.className='star'; s.style.top=Math.random()*100+'%'; s.style.left=Math.random()*100+'%'; s.style.animationDelay=Math.random()*5+'s'; c.appendChild(s); }}
         function addShapes(){ const c=document.getElementById('shapes'); const t=['cube','sphere','pyramid','torus','cross']; for(let i=0;i<15;i++){ const s=document.createElement('div'); const type=t[Math.floor(Math.random()*t.length)]; s.className=`shape ${type}`; s.style.top=Math.random()*90+'%'; s.style.left=Math.random()*90+'%'; s.style.animationDelay=(Math.random()*-10)+'s'; s.style.animationDuration=(15+Math.random()*15)+'s'; s.style.transform=`scale(${0.4+Math.random()*0.8})`; c.appendChild(s); }}
 
